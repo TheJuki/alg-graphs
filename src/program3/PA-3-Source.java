@@ -12,6 +12,8 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,7 +79,7 @@ class Main {
 
             public Object[] getColumnOneData()
             {
-                return data.stream().map(item -> item[0])
+                return data.stream().map(item -> item[0]).sorted(String::compareTo)
                     .collect(Collectors.<String>toList()).toArray();
             }
 
@@ -138,11 +140,13 @@ class Main {
                 };
             };
 
-            vertexTable.setModel(new TableListModel(new String[]{"Label"}));
+            vertexTable.setModel(new TableListModel(new String[]{"Vertex"}));
             Dimension vertexTableDim = vertexTable.getPreferredScrollableViewportSize();
             vertexTableDim.setSize(vertexTable.getPreferredSize().getWidth(), 200);
             vertexTable.setPreferredScrollableViewportSize(vertexTableDim);
             vertexTable.setFillsViewportHeight(true);
+
+            vertexTable.putClientProperty("terminateEditOnFocusLost", true);
 
             vertexTablePane = new JScrollPane(vertexTable);
 
@@ -161,7 +165,32 @@ class Main {
             edgeTable.setPreferredScrollableViewportSize(edgeTableDim);
             edgeTable.setFillsViewportHeight(true);
 
+            //Set up the editor for the cells.
+            JComboBox edgeComboBox1 = new JComboBox();
+            edgeTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(edgeComboBox1));
+
+            //Set up the editor for the cells.
+            JComboBox edgeComboBox2 = new JComboBox();
+            edgeTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(edgeComboBox2));
+
+            edgeTable.putClientProperty("terminateEditOnFocusLost", true);
+
             edgeTablePane = new JScrollPane(edgeTable);
+
+            // Update Edge Edit Combo Boxes on edit un-focus
+            vertexTable.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusLost(FocusEvent e) {
+                    edgeComboBox1.removeAllItems();
+                    edgeComboBox2.removeAllItems();
+
+                    for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
+                    {
+                        edgeComboBox1.addItem(item.toString());
+                        edgeComboBox2.addItem(item.toString());
+                    }
+                }
+            });
 
             final JPanel vertexActions = new JPanel();
             vertexActions.setLayout(new FlowLayout());
@@ -177,16 +206,26 @@ class Main {
                 JTextField newVertex = new JTextField(10);
 
                 JPanel myPanel = new JPanel();
-                myPanel.add(new JLabel("Label:"));
+                myPanel.add(new JLabel("Vertex:"));
                 myPanel.add(newVertex);
 
                 int result = JOptionPane.showConfirmDialog(null, myPanel,
                         "New Vertex", JOptionPane.OK_CANCEL_OPTION);
                 if (result == JOptionPane.OK_OPTION) {
                     ((TableListModel) vertexTable.getModel()).addRow(new String[]{newVertex.getText()});
+
+                    edgeComboBox1.removeAllItems();
+                    edgeComboBox2.removeAllItems();
+
+                    for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
+                    {
+                        edgeComboBox1.addItem(item.toString());
+                        edgeComboBox2.addItem(item.toString());
+                    }
                 }
             });
 
+            // Delete vertex
             deleteVertexButton.addActionListener((event) -> {
 
                 if(vertexTable.getSelectedRow() < 0)
@@ -196,8 +235,22 @@ class Main {
                 }
                 else
                 {
-                    ((TableListModel) vertexTable.getModel()).deleteRow(vertexTable.getSelectedRow());
+                    JDialog.setDefaultLookAndFeelDecorated(true);
+                    int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Vertex: " +
+                                    ((TableListModel) vertexTable.getModel()).getValueAt(vertexTable.getSelectedRow(), 0) + "?", "Delete?",
+                            JOptionPane.YES_NO_OPTION);
+                    if (response == JOptionPane.YES_OPTION) {
+                        ((TableListModel) vertexTable.getModel()).deleteRow(vertexTable.getSelectedRow());
 
+                        edgeComboBox1.removeAllItems();
+                        edgeComboBox2.removeAllItems();
+
+                        for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
+                        {
+                            edgeComboBox1.addItem(item.toString());
+                            edgeComboBox2.addItem(item.toString());
+                        }
+                    }
                 }
             });
 
@@ -247,8 +300,15 @@ class Main {
                 }
                 else
                 {
-                    ((TableListModel) edgeTable.getModel()).deleteRow(edgeTable.getSelectedRow());
-
+                    JDialog.setDefaultLookAndFeelDecorated(true);
+                    int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Edge: " +
+                                    ((TableListModel) edgeTable.getModel()).getValueAt(edgeTable.getSelectedRow(), 0) + " ▶ " +
+                                    ((TableListModel) edgeTable.getModel()).getValueAt(edgeTable.getSelectedRow(), 1)
+                                    + "?", "Delete?",
+                            JOptionPane.YES_NO_OPTION);
+                    if (response == JOptionPane.YES_OPTION) {
+                        ((TableListModel) edgeTable.getModel()).deleteRow(edgeTable.getSelectedRow());
+                    }
                 }
             });
 
