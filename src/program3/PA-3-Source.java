@@ -1,5 +1,6 @@
 package program3;
 
+import com.sun.istack.internal.NotNull;
 import org.jgraph.JGraph;
 import org.jgraph.graph.DefaultGraphCell;
 import org.jgraph.graph.GraphConstants;
@@ -10,22 +11,21 @@ import org.jgrapht.ext.JGraphModelAdapter;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import org.jgrapht.graph.ListenableUndirectedGraph;
+import org.jgrapht.traverse.DepthFirstIterator;
+import org.jgrapht.traverse.GraphIterator;
 
+import javax.print.DocFlavor;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.sun.xml.internal.fastinfoset.alphabet.BuiltInRestrictedAlphabets.table;
 
 class Main {
 
@@ -235,6 +235,14 @@ class Main {
 
                         buildAdjacencyPage(adjacencyPanel);
                     }
+
+                    GraphIterator<String, DefaultEdge> iterator =
+                            new DepthFirstIterator<>(listenableGraph);
+                    while (iterator.hasNext()) {
+                        System.out.println( iterator.next() );
+                    }
+
+                    dfSearch(vertexes, adjacencyList);
                 }
             });
 
@@ -759,6 +767,143 @@ class Main {
             }
         }
 
+        // Vertex color for search algorithms
+        private enum VertexColor {
+            WHITE, GRAY, BLACK;
+        }
+
+        // Search attributes
+        public class SearchAttributes
+        {
+            private java.util.List<String[]> vertexes;
+            private ArrayList<LinkedList<String>> adjacencyList;
+            private VertexColor[] color;
+            private String[] predecessor;
+            private int[] firstTime;
+            private int[] lastTime;
+            private int[] distance;
+            private int time;
+
+            public SearchAttributes(@NotNull java.util.List<String[]> vertexes,
+                                    ArrayList<LinkedList<String>> adjacencyList)
+            {
+                this.vertexes = vertexes;
+                this.adjacencyList = adjacencyList;
+                this.color = new VertexColor[vertexes.size()];
+                this.predecessor = new String[vertexes.size()];
+                this.firstTime = new int[vertexes.size()];
+                this.lastTime = new int[vertexes.size()];
+                this.distance = new int[vertexes.size()];
+                this.time = 0;
+            }
+
+            public ArrayList<LinkedList<String>> getAdjacencyList() {
+                return adjacencyList;
+            }
+
+            public List<String[]> getVertexes() {
+                return vertexes;
+            }
+
+            public VertexColor[] getColor() {
+                return color;
+            }
+
+            public String[] getPredecessor() {
+                return predecessor;
+            }
+
+            public int[] getFirstTime() {
+                return firstTime;
+            }
+
+            public int[] getLastTime() {
+                return lastTime;
+            }
+
+            public int[] getDistance() {
+                return distance;
+            }
+
+            public int getTime() {
+                return time;
+            }
+
+            public void setTime(int time) {
+                this.time = time;
+            }
+
+            public int getVertexIndex(String vertex)
+            {
+                int index = 0;
+
+                for(String[] vertexLabel : vertexes)
+                {
+                    if(vertexLabel[0].equals(vertex))
+                    {
+                        index = vertexes.indexOf(vertexLabel);
+                    }
+                }
+
+                return index;
+            }
+        }
+
+        // Depth-First Search
+        public SearchAttributes dfSearch(java.util.List<String[]> vertexes,  ArrayList<LinkedList<String>> adjacencyList)
+        {
+            // Get search initial attributes
+            SearchAttributes searchAttributes = new SearchAttributes(vertexes, adjacencyList);
+
+            // Initialize colors and predecessors
+            for(int u = 0; u < vertexes.size(); u++)
+            {
+                searchAttributes.getColor()[u] = VertexColor.WHITE;
+                searchAttributes.getPredecessor()[u] = "^";
+            }
+
+            // Run the dfs visit function for all white nodes
+            for(int u = 0; u < vertexes.size(); u++)
+            {
+               if(searchAttributes.getColor()[u] == VertexColor.WHITE)
+               {
+                   dfsVisit(searchAttributes, u);
+               }
+            }
+
+            System.out.print(Arrays.toString(searchAttributes.getLastTime()));
+
+            return searchAttributes;
+        }
+
+        // Depth-First Search Visit
+        public void dfsVisit(SearchAttributes searchAttributes, int u)
+        {
+            // Set color to gray
+            searchAttributes.getColor()[u] = VertexColor.GRAY;
+            searchAttributes.getFirstTime()[u] = searchAttributes.getTime();
+            searchAttributes.setTime(searchAttributes.getTime() + 1);
+
+            for(int v = 0; v < searchAttributes.getAdjacencyList().get(u).size(); v++)
+            {
+                int vertexIndex = searchAttributes.getVertexIndex(searchAttributes.getAdjacencyList().get(u).get(v));
+
+                // Check if color is white
+                if(searchAttributes.getColor()[vertexIndex] == VertexColor.WHITE)
+                {
+                    // Add Predecessor
+                    searchAttributes.getPredecessor()[vertexIndex] = searchAttributes.getVertexes().get(u)[0];
+
+                    // Recursive call dfsVisit
+                    dfsVisit(searchAttributes, vertexIndex);
+                }
+            }
+
+            // Set color to black
+            searchAttributes.getColor()[u] = VertexColor.BLACK;
+            searchAttributes.getLastTime()[u] = searchAttributes.getTime();
+            searchAttributes.setTime(searchAttributes.getTime() + 1);
+        }
     }
 
     // Display graph
