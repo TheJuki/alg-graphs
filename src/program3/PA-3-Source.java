@@ -138,6 +138,9 @@ class Main {
                     edges.forEach(item ->
                     {
                         if (listenableGraph.containsVertex(item[0]) && listenableGraph.containsVertex(item[1])) {
+                            if(!isDirected && item[0].equals(item[1])) {
+                                return;
+                            }
                             listenableGraph.addEdge(item[0], item[1]);
                         }
                     });
