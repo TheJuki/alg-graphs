@@ -16,11 +16,16 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.sun.xml.internal.fastinfoset.alphabet.BuiltInRestrictedAlphabets.table;
 
 class Main {
 
@@ -56,21 +61,27 @@ class Main {
         private JTable vertexTable;
 
         // Adjacency matrix
-        private JLabel[][] adjacencyMatrix = new JLabel[9][9];
+        private JLabel[][] adjacencyMatrix = new JLabel[7][7];
 
+        // Adjacency Linked List
         ArrayList<LinkedList<String>> adjacencyList = new ArrayList<>();
 
+        // Matrix font and gap
         private static final int GAP = 1;
         private static final Font LABEL_FONT = new Font(Font.DIALOG, Font.PLAIN, 24);
+
+        // SCC list
+        private java.util.List sccList;
 
         // Boolean to determine of the graph is directed
         private boolean isDirected = true;
 
         // Constructor for GraphGUI
         private GraphGUI(String name) {
-            //Inherits name from JFrame
+            // Inherits name from JFrame
             super(name);
 
+            // Initialize GUI
             init();
         }
 
@@ -80,30 +91,42 @@ class Main {
             // Tabs
             tabs = new JTabbedPane();
 
+            // Home panel
             JPanel homePanel = new JPanel();
             buildHomePage(homePanel);
 
+            // Adjacency panel
             JPanel adjacencyPanel = new JPanel();
             buildAdjacencyPage(adjacencyPanel);
+
+            // SCC panel
+            JPanel sccPanel = new JPanel();
+            buildSccPage(sccPanel);
 
             JPanel buttons = new JPanel();
             JPanel mainPanel = new JPanel();
 
+            // Directed Radio button
             JRadioButton directedButton = new JRadioButton("Directed");
             directedButton.setSelected(true);
             directedButton.setFocusPainted(false);
+            directedButton.setToolTipText("Use a directed graph. Reload graph after changing.");
             directedButton.addActionListener(e -> isDirected = true);
 
+            // Undirected Radio button
             JRadioButton unDirectedButton = new JRadioButton("Undirected");
             unDirectedButton.setFocusPainted(false);
+            unDirectedButton.setToolTipText("Use an undirected graph. Reload graph after changing.");
             unDirectedButton.addActionListener(e -> isDirected = false);
 
-            //Group the radio buttons.
+            // Group the radio buttons.
             ButtonGroup radioGroup = new ButtonGroup();
             radioGroup.add(directedButton);
             radioGroup.add(unDirectedButton);
 
+            // Bottom buttons
             final JButton reloadButton = new JButton("Reload graph");
+            reloadButton.setToolTipText("Reloads the adjacency list and matrix, SCC, and interactive graph");
             final JButton quitButton = new JButton("Quit");
 
             // Reload graph
@@ -111,22 +134,27 @@ class Main {
                 @Override
                 public void actionPerformed(ActionEvent event) {
 
-
+                    // Get vertexes and edges from Home tables
                     java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
                     java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
 
+                    // Create a new Directed or Undirected graph
                     if (isDirected) {
                         listenableGraph = new ListenableDirectedGraph<>(DefaultEdge.class);
                     } else {
                         listenableGraph = new ListenableUndirectedGraph<>(DefaultEdge.class);
                     }
 
+                    // JGraph object model
                     jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
 
+                    // JGraph object
                     jgraph = new JGraph(jGraphModelAdapter);
 
+                    // New Adjacency list
                     adjacencyList = new ArrayList<>();
 
+                    // Add vertexes to graph
                     vertexes.forEach(item ->
                     {
                         listenableGraph.addVertex(item[0]);
@@ -135,6 +163,7 @@ class Main {
 
                     });
 
+                    // Add edges to graph
                     edges.forEach(item ->
                     {
                         if (listenableGraph.containsVertex(item[0]) && listenableGraph.containsVertex(item[1])) {
@@ -162,16 +191,18 @@ class Main {
                         columns[0]++;
                     });
 
-                    // create a JGraphT graph
+                    // Setup graph display
                     adjustDisplaySettings(jgraph);
                     graphScrollPane.setViewportView(jgraph);
 
+                    // Get Strongly Connected components if the graph is directed
                     if (isDirected) {
                         KosarajuStrongConnectivityInspector kosarajuStrongConnectivityInspector = new KosarajuStrongConnectivityInspector((DirectedGraph) listenableGraph);
 
-                        java.util.List list = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
+                        sccList = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
 
-                        list.forEach(item -> System.out.print(item + "\n"));
+                        buildSccPage(sccPanel);
+
                     }
 
                     // Adjacency Matrix and List
@@ -210,22 +241,27 @@ class Main {
             //Quit button
             quitButton.addActionListener(e -> System.exit(0));
 
+            // Add buttons to buttons panel
             buttons.add(directedButton);
             buttons.add(unDirectedButton);
             buttons.add(reloadButton);
             buttons.add(quitButton);
 
+            // Setup main panel
             mainPanel.add(tabs, BorderLayout.CENTER);
             mainPanel.add(buttons, BorderLayout.PAGE_END);
 
+            // Setup graph scroll pane
             graphScrollPane = new JScrollPane(null,
                     JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
                     JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
             graphScrollPane.setPreferredSize(new Dimension(500, 320));
 
-            tabs.addTab("Home", null, homePanel, "Home");
-            tabs.addTab("Adjacency", null, adjacencyPanel, "Adjacency");
-            tabs.addTab("Graph", null, graphScrollPane, "Graph");
+            // Add tabs
+            tabs.addTab("Vertexes/Edges", null, homePanel, "Edit Vertexes and Edges");
+            tabs.addTab("Adjacency", null, adjacencyPanel, "Adjacency List and Matrix");
+            tabs.addTab("SCC", null, sccPanel, "Strongly Connected Components");
+            tabs.addTab("Graph", null, graphScrollPane, "Interactive Graph");
 
             // Set main view
             getContentPane().add(mainPanel);
@@ -250,7 +286,7 @@ class Main {
             jGraphModelAdapter.edit(cellAttr, null, null, null);
         }
 
-        // Table List Model class for GUI table of unsorted/sorted lists
+        // Table List Model class for the GUI tables
         public class TableListModel extends AbstractTableModel {
             private java.util.List<String> columnNames = new ArrayList<>();
             private java.util.List<String[]> data = new ArrayList<>();
@@ -316,7 +352,11 @@ class Main {
          * @param page The Adjacency tab
          */
         private void buildAdjacencyPage(JPanel page) {
+
+            // Remove previous components
             page.removeAll();
+
+            // Build Matrix grid
             JPanel matrixPanel = new JPanel(new GridLayout(adjacencyMatrix.length, adjacencyMatrix[0].length, GAP, GAP));
             matrixPanel.setBorder(BorderFactory.createEmptyBorder(GAP, GAP, GAP, GAP));
             matrixPanel.setBackground(Color.BLACK);
@@ -333,29 +373,16 @@ class Main {
                 }
             }
 
+            // Matrix pane
             JPanel matrixPane = new JPanel(new BorderLayout());
             matrixPane.setBorder(new TitledBorder("Matrix"));
 
+            // List pane
             JPanel listPane = new JPanel(new BorderLayout());
             listPane.setBorder(new TitledBorder("List"));
 
-            // Adjacency List Table
-            JTable adjacencyListTable = new JTable() {
-                private static final long serialVersionUID = 1L;
-
-                public boolean isCellEditable(int row, int column) {
-                    return false;
-                }
-            };
-
-            adjacencyListTable.setRowSelectionAllowed(false);
-            adjacencyListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-            adjacencyListTable.setModel(new TableListModel(new String[]{"List"}));
-            Dimension vertexTableDim = adjacencyListTable.getPreferredScrollableViewportSize();
-            vertexTableDim.setSize(100, 200);
-            adjacencyListTable.setPreferredScrollableViewportSize(vertexTableDim);
-            adjacencyListTable.setFillsViewportHeight(true);
+            // Adjacency List Grid
+            JPanel adjListPanel = new JPanel(new GridLayout(adjacencyList.size(), 1, GAP, GAP));
 
             // Add each row of the adjacency Linked Lists to the table
             for (LinkedList<String> list : adjacencyList) {
@@ -373,18 +400,74 @@ class Main {
                     }
                 }
 
-                ((TableListModel) adjacencyListTable.getModel()).addRow(new String[]{item.trim()});
+                JLabel labelItem = new JLabel(" " + item + " ");
+
+                labelItem.setOpaque(true);
+                labelItem.setBackground(Color.WHITE);
+                adjListPanel.add(labelItem);
             }
 
+            // Scroll panes
             JScrollPane matrixScrollPane = new JScrollPane(matrixPanel);
-            JScrollPane listScrollPane = new JScrollPane(adjacencyListTable);
+            matrixScrollPane.setPreferredSize(new Dimension(300, 300));
 
+            JScrollPane listScrollPane = new JScrollPane(adjListPanel);
+            listScrollPane.setPreferredSize(new Dimension(100, 300));
+
+            // Add matrix and list to scroll panes
             listPane.add(listScrollPane);
             matrixPane.add(matrixScrollPane);
 
+            // Add matrix and list to adjacency panel
             page.add(matrixPane, BorderLayout.WEST);
             page.add(listPane, BorderLayout.EAST);
 
+            // Refresh page
+            page.revalidate();
+            page.repaint();
+        }
+
+        /**
+         * Builds the SCC Page - Strongly Connected Components table
+         *
+         * @param page The SCC tab
+         */
+        private void buildSccPage(JPanel page) {
+
+            // Remove previous components
+            page.removeAll();
+
+            // List pane
+            JPanel listPane = new JPanel(new BorderLayout());
+            listPane.setBorder(new TitledBorder("SCC"));
+
+            // SCC grid
+            JPanel sccPanel = new JPanel(new GridLayout(sccList != null ? sccList.size() : 1, 1, GAP, GAP));
+
+            // Add all SCC items to grid
+            if(sccList != null) {
+                // Add scc list to table
+                sccList.forEach(item ->
+                {
+                    JLabel labelItem = new JLabel(" " + item + " ");
+
+                    labelItem.setOpaque(true);
+                    labelItem.setBackground(Color.WHITE);
+                    sccPanel.add(labelItem);
+                });
+            }
+
+            // Scroll pane
+            JScrollPane listScrollPane = new JScrollPane(sccPanel);
+            listScrollPane.setPreferredSize(new Dimension(100, 300));
+
+            // Add scc to scroll pane
+            listPane.add(listScrollPane);
+
+            // Add scc list panel to scc page
+            page.add(listPane, BorderLayout.CENTER);
+
+            // Refresh page
             page.revalidate();
             page.repaint();
         }
@@ -416,7 +499,7 @@ class Main {
 
             vertexTable.setModel(new TableListModel(new String[]{"Vertex"}));
             Dimension vertexTableDim = vertexTable.getPreferredScrollableViewportSize();
-            vertexTableDim.setSize(vertexTable.getPreferredSize().getWidth(), 200);
+            vertexTableDim.setSize(vertexTable.getPreferredSize().getWidth(), 240);
             vertexTable.setPreferredScrollableViewportSize(vertexTableDim);
             vertexTable.setFillsViewportHeight(true);
             vertexTable.putClientProperty("terminateEditOnFocusLost", true);
@@ -440,7 +523,7 @@ class Main {
             // Set up edge table
             edgeTable.setModel(new TableListModel(new String[]{"Source", "Target"}));
             Dimension edgeTableDim = edgeTable.getPreferredScrollableViewportSize();
-            edgeTableDim.setSize(edgeTable.getPreferredSize().getWidth(), 200);
+            edgeTableDim.setSize(edgeTable.getPreferredSize().getWidth(), 240);
             edgeTable.setPreferredScrollableViewportSize(edgeTableDim);
             edgeTable.setFillsViewportHeight(true);
 
@@ -554,9 +637,11 @@ class Main {
                 }
             });
 
+            // Add vertex buttons
             vertexActions.add(addVertexButton);
             vertexActions.add(deleteVertexButton);
 
+            // Add vertex panels
             vertexPane.add(vertexActions, BorderLayout.NORTH);
             vertexPane.add(vertexTablePane, BorderLayout.SOUTH);
 
@@ -585,7 +670,7 @@ class Main {
                     } else {
 
                         JComboBox<Object> sourceVertex = new JComboBox<>(((TableListModel) vertexTable.getModel()).getColumnOneData());
-                        JComboBox targetVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
+                        JComboBox<Object> targetVertex = new JComboBox<>(((TableListModel) vertexTable.getModel()).getColumnOneData());
 
                         JPanel myPanel = new JPanel();
                         myPanel.add(new JLabel("Source:"));
@@ -630,12 +715,15 @@ class Main {
                 }
             });
 
+            // Add edge buttons
             edgeActions.add(addEdgeButton);
             edgeActions.add(deleteEdgeButton);
 
+            // Add edge panels
             edgePane.add(edgeActions, BorderLayout.NORTH);
             edgePane.add(edgeTablePane, BorderLayout.SOUTH);
 
+            // Add home panels (Vertex pane and Edge pane)
             page.add(vertexPane, BorderLayout.WEST);
             page.add(edgePane, BorderLayout.EAST);
         }
@@ -688,7 +776,7 @@ class Main {
         frame.setLocationRelativeTo(null);
 
         //Show the GUI
-        frame.setSize(500, 550);
+        frame.setSize(500, 470);
         frame.setVisible(true);
         frame.setResizable(true);
 
