@@ -3,10 +3,15 @@ package program3;
 import org.jgraph.JGraph;
 import org.jgraph.graph.DefaultGraphCell;
 import org.jgraph.graph.GraphConstants;
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.ListenableGraph;
+import org.jgrapht.alg.KosarajuStrongConnectivityInspector;
+import org.jgrapht.ext.ExportException;
 import org.jgrapht.ext.JGraphModelAdapter;
+import org.jgrapht.ext.MatrixExporter;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.ListenableDirectedGraph;
+import org.jgrapht.graph.ListenableUndirectedGraph;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -14,9 +19,14 @@ import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.geom.Rectangle2D;
+import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,8 +35,9 @@ import java.util.stream.Collectors;
 
 class Main {
 
+    // Main
     public static void main(String[] args) {
-        homeGUI();
+        displayGraphGUI("PA-3 Graphs");
     }
 
     // Graph GUI
@@ -34,12 +45,19 @@ class Main {
         private static final Color DEFAULT_BG_COLOR = Color.decode("#FAFBFF");
         private static final Dimension DEFAULT_SIZE = new Dimension(1000, 1000);
 
+        // JGraph object
         private JGraph jgraph;
+
+        // Graph (Undirected or Directed) with vertexes and edges
         private ListenableGraph<String, DefaultEdge> listenableGraph;
+
+        // JGraph object model adapter with vertexes and edges
         private JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter;
 
+        // Tabs
         private JTabbedPane tabs;
 
+        // Graph scroll pane
         JScrollPane graphScrollPane;
 
         // Edge table
@@ -48,15 +66,13 @@ class Main {
         // Vertex table
         private JTable vertexTable;
 
+        // Boolean to determine of the graph is directed
+        private boolean isDirected = true;
+
         // Constructor for GraphGUI
-        private GraphGUI(String name, JGraph jgraph,
-                         ListenableGraph<String, DefaultEdge> listenableGraph,
-                         JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter) {
+        private GraphGUI(String name) {
             //Inherits name from JFrame
             super(name);
-            this.jgraph = jgraph;
-            this.listenableGraph = listenableGraph;
-            this.jGraphModelAdapter = jGraphModelAdapter;
 
             init();
         }
@@ -76,6 +92,20 @@ class Main {
             JPanel buttons = new JPanel();
             JPanel mainPanel = new JPanel();
 
+            JRadioButton directedButton = new JRadioButton("Directed");
+            directedButton.setSelected(true);
+            directedButton.setFocusPainted(false);
+            directedButton.addActionListener(e -> isDirected = true);
+
+            JRadioButton unDirectedButton = new JRadioButton("Undirected");
+            unDirectedButton.setFocusPainted(false);
+            unDirectedButton.addActionListener(e -> isDirected = false);
+
+            //Group the radio buttons.
+            ButtonGroup radioGroup = new ButtonGroup();
+            radioGroup.add(directedButton);
+            radioGroup.add(unDirectedButton);
+
             final JButton reloadButton = new JButton("Reload graph");
             final JButton quitButton = new JButton("Quit");
 
@@ -85,7 +115,13 @@ class Main {
                 java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
                 java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
 
-                listenableGraph = new ListenableDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
+                if(isDirected) {
+                    listenableGraph = new ListenableDirectedGraph<>(DefaultEdge.class);
+                }
+                else
+                {
+                    listenableGraph = new ListenableUndirectedGraph<>(DefaultEdge.class);
+                }
 
                 jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
 
@@ -124,18 +160,47 @@ class Main {
                 adjustDisplaySettings(jgraph);
                 graphScrollPane.setViewportView(jgraph);
 
+                MatrixExporter<String, DefaultEdge> matrixExporter = new MatrixExporter<>();
+
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+                try {
+                    matrixExporter.exportGraph(listenableGraph, outputStream);
+
+                    String adjanceyMatrix = "";
+
+                    adjanceyMatrix = outputStream.toString( StandardCharsets.UTF_8.toString() );
+
+                    System.out.print(adjanceyMatrix);
+                } catch (ExportException e) {
+                    e.printStackTrace();
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+
+                if(isDirected) {
+                    KosarajuStrongConnectivityInspector kosarajuStrongConnectivityInspector = new KosarajuStrongConnectivityInspector((DirectedGraph) listenableGraph);
+
+                    java.util.List list = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
+
+                    list.forEach(item -> System.out.print(item + "\n"));
+                }
+
+
             });
 
             //Quit button
             quitButton.addActionListener(e -> System.exit(0));
 
+            buttons.add(directedButton);
+            buttons.add(unDirectedButton);
             buttons.add(reloadButton);
             buttons.add(quitButton);
 
             mainPanel.add(tabs);
             mainPanel.add(buttons);
 
-            graphScrollPane = new JScrollPane(jgraph,
+            graphScrollPane = new JScrollPane(null,
                     JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
                     JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
             graphScrollPane.setPreferredSize(new Dimension(500, 320));
@@ -144,27 +209,8 @@ class Main {
             tabs.addTab("Adjacency", null, adjacencyPanel, "Adjacency");
             tabs.addTab("Graph", null, graphScrollPane, "Graph");
 
-            // create a JGraphT graph
-            adjustDisplaySettings(jgraph);
+            // Set main view
             getContentPane().add(mainPanel);
-            // setSize(DEFAULT_SIZE);
-
-            // Position vertices within JGraph component
-            final int[] columns = {0};
-            final int[] x = {20};
-            final int[] y = {20};
-            listenableGraph.vertexSet().forEach(item -> {
-                if (columns[0] == 3) {
-                    x[0] = 20;
-                    y[0] += 200;
-                    columns[0] = 0;
-                }
-
-                positionVertexAt(item, x[0], y[0]);
-
-                x[0] += 180;
-                columns[0]++;
-            });
         }
 
         // Adjust graph size and background color
@@ -311,11 +357,11 @@ class Main {
             edgeTable.setFillsViewportHeight(true);
 
             //Set up the editor for the cells.
-            JComboBox edgeComboBox1 = new JComboBox();
+            JComboBox<String> edgeComboBox1 = new JComboBox<>();
             edgeTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(edgeComboBox1));
 
             //Set up the editor for the cells.
-            JComboBox edgeComboBox2 = new JComboBox();
+            JComboBox<String> edgeComboBox2 = new JComboBox<>();
             edgeTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(edgeComboBox2));
             edgeTable.putClientProperty("terminateEditOnFocusLost", true);
 
@@ -413,7 +459,7 @@ class Main {
                             JOptionPane.OK_OPTION);
                 } else {
 
-                    JComboBox sourceVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
+                    JComboBox<Object> sourceVertex = new JComboBox<>(((TableListModel) vertexTable.getModel()).getColumnOneData());
                     JComboBox targetVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
 
                     JPanel myPanel = new JPanel();
@@ -494,47 +540,11 @@ class Main {
 
     }
 
-    public static void homeGUI() {
-        ListenableGraph<String, DefaultEdge> listenableGraph = new ListenableDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
-
-        JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter;
-        // create a visualization using JGraph, via an adapter
-        jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
-
-        JGraph jgraph = new JGraph(jGraphModelAdapter);
-
-
-        // add some sample data (graph manipulated via JGraphT)
-        listenableGraph.addVertex("A");
-        listenableGraph.addVertex("B");
-        listenableGraph.addVertex("D");
-        listenableGraph.addVertex("C");
-        listenableGraph.addVertex("E");
-        listenableGraph.addVertex("F");
-        listenableGraph.addVertex("G");
-        listenableGraph.addVertex("H");
-
-        listenableGraph.addEdge("F", "A");
-        listenableGraph.addEdge("F", "E");
-        listenableGraph.addEdge("A", "B");
-        listenableGraph.addEdge("A", "H");
-        listenableGraph.addEdge("B", "C");
-        listenableGraph.addEdge("C", "D");
-        listenableGraph.addEdge("D", "H");
-        listenableGraph.addEdge("H", "G");
-        listenableGraph.addEdge("E", "G");
-
-
-        displayGraphGUI("PA-3 Graphs", jgraph, listenableGraph, jGraphModelAdapter);
-    }
-
     // Display graph
-    private static void displayGraphGUI(String name, JGraph jgraph,
-                                        ListenableGraph<String, DefaultEdge> listenableGraph,
-                                        JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter) {
+    private static void displayGraphGUI(String name) {
 
         //Create and set up a new GUI
-        GraphGUI frame = new GraphGUI(name, jgraph, listenableGraph, jGraphModelAdapter);
+        GraphGUI frame = new GraphGUI(name);
 
         //Exit on close
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

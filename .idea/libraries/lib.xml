@@ -6,6 +6,7 @@
     <JAVADOC />
     <SOURCES>
       <root url="jar://$USER_HOME$/.ideaLibSources/jgrapht-core-1.0.0-sources.jar!/" />
+      <root url="jar://$USER_HOME$/.ideaLibSources/jgrapht-ext-1.0.0-sources.jar!/" />
     </SOURCES>
     <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" />
   </library>
