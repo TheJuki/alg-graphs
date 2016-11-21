@@ -6,9 +6,7 @@ import org.jgraph.graph.GraphConstants;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.ListenableGraph;
 import org.jgrapht.alg.KosarajuStrongConnectivityInspector;
-import org.jgrapht.ext.ExportException;
 import org.jgrapht.ext.JGraphModelAdapter;
-import org.jgrapht.ext.MatrixExporter;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import org.jgrapht.graph.ListenableUndirectedGraph;
@@ -19,18 +17,9 @@ import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
-import java.io.ByteArrayOutputStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class Main {
@@ -66,8 +55,10 @@ class Main {
         // Vertex table
         private JTable vertexTable;
 
-        // Ajacency matrix
+        // Adjacency matrix
         private JLabel[][] adjacencyMatrix = new JLabel[9][9];
+
+        ArrayList<LinkedList<String>> adjacencyList = new ArrayList<>();
 
         private static final int GAP = 1;
         private static final Font LABEL_FONT = new Font(Font.DIALOG, Font.PLAIN, 24);
@@ -134,9 +125,14 @@ class Main {
 
                     jgraph = new JGraph(jGraphModelAdapter);
 
+                    adjacencyList = new ArrayList<>();
+
                     vertexes.forEach(item ->
                     {
                         listenableGraph.addVertex(item[0]);
+                        adjacencyList.add(new LinkedList<>());
+                        adjacencyList.get(adjacencyList.size() - 1).add(item[0]);
+
                     });
 
                     edges.forEach(item ->
@@ -167,24 +163,6 @@ class Main {
                     adjustDisplaySettings(jgraph);
                     graphScrollPane.setViewportView(jgraph);
 
-                    MatrixExporter<String, DefaultEdge> matrixExporter = new MatrixExporter<>();
-
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-                    try {
-                        matrixExporter.exportGraph(listenableGraph, outputStream);
-
-                        String adjanceyMatrix = "";
-
-                        adjanceyMatrix = outputStream.toString(StandardCharsets.UTF_8.toString());
-
-                        System.out.print(adjanceyMatrix);
-                    } catch (ExportException e) {
-                        e.printStackTrace();
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }
-
                     if (isDirected) {
                         KosarajuStrongConnectivityInspector kosarajuStrongConnectivityInspector = new KosarajuStrongConnectivityInspector((DirectedGraph) listenableGraph);
 
@@ -196,24 +174,27 @@ class Main {
                     // Adjacency Matrix and List
                     adjacencyMatrix = new JLabel[vertexes.size() + 1][vertexes.size() + 1];
 
-                    System.out.print(adjacencyMatrix.length);
-
                     if(adjacencyMatrix.length > 0) {
                         adjacencyMatrix[0][0] = new JLabel(" ", SwingConstants.CENTER);
 
                         for (int i = 1; i <= vertexes.size(); i++) {
-                            adjacencyMatrix[0][i] = new JLabel(vertexes.get(i - 1)[0], SwingConstants.CENTER);
+                            adjacencyMatrix[0][i] = new JLabel(" " + vertexes.get(i - 1)[0] + " ", SwingConstants.CENTER);
                         }
 
                         for (int i = 1; i <= vertexes.size(); i++)
                         {
-                            adjacencyMatrix[i][0] = new JLabel(vertexes.get(i - 1)[0], SwingConstants.CENTER);
+                            adjacencyMatrix[i][0] = new JLabel(" " + vertexes.get(i - 1)[0] + " ", SwingConstants.CENTER);
 
                             for (int j = 1; j <= vertexes.size(); j++) {
                                 adjacencyMatrix[i][j] =
-                                        new JLabel((listenableGraph.getEdge(adjacencyMatrix[i][0].getText(),
-                                                adjacencyMatrix[0][j].getText()) != null) ? "1" : "0",
+                                        new JLabel((listenableGraph.getEdge(adjacencyMatrix[i][0].getText().trim(),
+                                                adjacencyMatrix[0][j].getText().trim()) != null) ? " 1 " : " 0 ",
                                         SwingConstants.CENTER);
+
+                                if(listenableGraph.getEdge(adjacencyMatrix[i][0].getText().trim(), adjacencyMatrix[0][j].getText().trim()) != null)
+                                {
+                                    adjacencyList.get(i-1).add(adjacencyMatrix[0][j].getText().trim());
+                                }
 
                             }
                         }
@@ -333,25 +314,76 @@ class Main {
          */
         private void buildAdjacencyPage(JPanel page) {
             page.removeAll();
-            JPanel matrixPannel = new JPanel(new GridLayout(adjacencyMatrix.length, adjacencyMatrix[0].length, GAP, GAP));
-            matrixPannel.setBorder(BorderFactory.createEmptyBorder(GAP, GAP, GAP, GAP));
-            matrixPannel.setBackground(Color.BLACK);
+            JPanel matrixPanel = new JPanel(new GridLayout(adjacencyMatrix.length, adjacencyMatrix[0].length, GAP, GAP));
+            matrixPanel.setBorder(BorderFactory.createEmptyBorder(GAP, GAP, GAP, GAP));
+            matrixPanel.setBackground(Color.BLACK);
             for (int row = 0; row < adjacencyMatrix.length; row++) {
                 for (int col = 0; col < adjacencyMatrix[row].length; col++) {
                     if(adjacencyMatrix[row][col] == null)
                     {
-                        adjacencyMatrix[row][col] = new JLabel("0", SwingConstants.CENTER);
+                        adjacencyMatrix[row][col] = new JLabel("  ", SwingConstants.CENTER);
                     }
                     adjacencyMatrix[row][col].setFont(LABEL_FONT); // make it big
                     adjacencyMatrix[row][col].setOpaque(true);
                     adjacencyMatrix[row][col].setBackground(Color.WHITE);
-                    matrixPannel.add(adjacencyMatrix[row][col]);
+                    matrixPanel.add(adjacencyMatrix[row][col]);
                 }
             }
 
-            page.setLayout(new BorderLayout());
-            page.add(matrixPannel, BorderLayout.WEST);
-            page.add(new JTable(), BorderLayout.EAST);
+            JPanel matrixPane = new JPanel(new BorderLayout());
+            matrixPane.setBorder(new TitledBorder("Matrix"));
+
+            JPanel listPane = new JPanel(new BorderLayout());
+            listPane.setBorder(new TitledBorder("List"));
+
+            // Adjacency List Table
+            JTable adjacencyListTable = new JTable() {
+                private static final long serialVersionUID = 1L;
+
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            };
+
+            adjacencyListTable.setRowSelectionAllowed(false);
+            adjacencyListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+            adjacencyListTable.setModel(new TableListModel(new String[]{"List"}));
+            Dimension vertexTableDim = adjacencyListTable.getPreferredScrollableViewportSize();
+            vertexTableDim.setSize(100, 200);
+            adjacencyListTable.setPreferredScrollableViewportSize(vertexTableDim);
+            adjacencyListTable.setFillsViewportHeight(true);
+
+            // Add each row of the adjacency Linked Lists to the table
+            for (LinkedList<String> list : adjacencyList) {
+
+                String item = "";
+
+                for (int i = 0; i < list.size(); i++) {
+                    if (i == 0) {
+                        item = list.get(0) + " -> ";
+                    } else {
+                        item += list.get(i);
+                        if ((i + 1) != list.size()) {
+                            item += ", ";
+                        }
+                    }
+                }
+
+                ((TableListModel) adjacencyListTable.getModel()).addRow(new String[]{item.trim()});
+            }
+
+            JScrollPane matrixScrollPane = new JScrollPane(matrixPanel);
+            JScrollPane listScrollPane = new JScrollPane(adjacencyListTable);
+
+            listPane.add(listScrollPane);
+            matrixPane.add(matrixScrollPane);
+
+            page.add(matrixPane, BorderLayout.WEST);
+            page.add(listPane, BorderLayout.EAST);
+
+            page.revalidate();
+            page.repaint();
         }
 
         /**
@@ -384,8 +416,10 @@ class Main {
             vertexTableDim.setSize(vertexTable.getPreferredSize().getWidth(), 200);
             vertexTable.setPreferredScrollableViewportSize(vertexTableDim);
             vertexTable.setFillsViewportHeight(true);
-
             vertexTable.putClientProperty("terminateEditOnFocusLost", true);
+
+            vertexTable.setRowSelectionAllowed(true);
+            vertexTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
             vertexTablePane = new JScrollPane(vertexTable);
 
@@ -416,6 +450,9 @@ class Main {
             edgeTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(edgeComboBox2));
             edgeTable.putClientProperty("terminateEditOnFocusLost", true);
 
+            vertexTable.setRowSelectionAllowed(true);
+            vertexTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
             edgeTablePane = new JScrollPane(edgeTable);
 
             // Update Edge Edit Combo Boxes on edit un-focus
@@ -438,35 +475,56 @@ class Main {
             final JPanel edgeActions = new JPanel();
             edgeActions.setLayout(new FlowLayout());
 
-            final JButton addVertexButton = new JButton("+ Add");
+            final JButton addVertexButton = new JButton("+ Add")
+            {
+                @Override
+                protected boolean processKeyBinding(KeyStroke ks, KeyEvent ke, int i, boolean bln) {
+                    boolean b = super.processKeyBinding(ks, ke, i, bln);
+
+                    if (b && ks.getKeyCode() == KeyEvent.VK_F1) {
+                        requestFocusInWindow();
+                    }
+
+                    return b;
+                }
+            };
             final JButton deleteVertexButton = new JButton("- Delete");
 
-            // Add a vertex
-            addVertexButton.addActionListener((event) -> {
+            // Add a vertex action
+            AbstractAction vertexAddAction = new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    JTextField newVertex = new JTextField(10);
 
-                JTextField newVertex = new JTextField(10);
+                    JPanel myPanel = new JPanel();
+                    myPanel.add(new JLabel("Vertex:"));
+                    myPanel.add(newVertex);
 
-                JPanel myPanel = new JPanel();
-                myPanel.add(new JLabel("Vertex:"));
-                myPanel.add(newVertex);
+                    newVertex.addAncestorListener(new RequestFocusListener());
 
-                newVertex.addAncestorListener(new RequestFocusListener());
+                    int result = JOptionPane.showConfirmDialog(null, myPanel,
+                            "New Vertex", JOptionPane.OK_CANCEL_OPTION);
 
-                int result = JOptionPane.showConfirmDialog(null, myPanel,
-                        "New Vertex", JOptionPane.OK_CANCEL_OPTION);
+                    if (result == JOptionPane.OK_OPTION && newVertex.getText().trim().length() > 0) {
+                        ((TableListModel) vertexTable.getModel()).addRow(new String[]{newVertex.getText().trim()});
 
-                if (result == JOptionPane.OK_OPTION && newVertex.getText().trim().length() > 0) {
-                    ((TableListModel) vertexTable.getModel()).addRow(new String[]{newVertex.getText().trim()});
+                        edgeComboBox1.removeAllItems();
+                        edgeComboBox2.removeAllItems();
 
-                    edgeComboBox1.removeAllItems();
-                    edgeComboBox2.removeAllItems();
-
-                    for (Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData()) {
-                        edgeComboBox1.addItem(item.toString());
-                        edgeComboBox2.addItem(item.toString());
+                        for (Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData()) {
+                            edgeComboBox1.addItem(item.toString());
+                            edgeComboBox2.addItem(item.toString());
+                        }
                     }
                 }
-            });
+            };
+
+            // Add Vertex button can be pressed using F1 and ENTER
+            addVertexButton.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "Enter");
+            addVertexButton.getActionMap().put("Enter", vertexAddAction);
+            addVertexButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), "F1");
+            addVertexButton.getActionMap().put("F1", vertexAddAction);
+            addVertexButton.addActionListener(vertexAddAction);
 
             // Delete a vertex
             deleteVertexButton.addActionListener((event) -> {
@@ -499,35 +557,56 @@ class Main {
             vertexPane.add(vertexActions, BorderLayout.NORTH);
             vertexPane.add(vertexTablePane, BorderLayout.SOUTH);
 
-            final JButton addEdgeButton = new JButton("+ Add");
+            final JButton addEdgeButton = new JButton("+ Add")
+            {
+                @Override
+                protected boolean processKeyBinding(KeyStroke ks, KeyEvent ke, int i, boolean bln) {
+                    boolean b = super.processKeyBinding(ks, ke, i, bln);
+
+                    if (b && ks.getKeyCode() == KeyEvent.VK_F2) {
+                        requestFocusInWindow();
+                    }
+
+                    return b;
+                }
+            };
             final JButton deleteEdgeButton = new JButton("- Delete");
 
-            // Add an edge
-            addEdgeButton.addActionListener((event) -> {
+            // Add an edge action
+            AbstractAction edgeAddAction = new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent ae) {
+                    if (((TableListModel) vertexTable.getModel()).getColumnOneData().length == 0) {
+                        JOptionPane.showMessageDialog(null, "Add a Vertex first", "No Vertexes",
+                                JOptionPane.OK_OPTION);
+                    } else {
 
-                if (((TableListModel) vertexTable.getModel()).getColumnOneData().length == 0) {
-                    JOptionPane.showMessageDialog(null, "Add a Vertex first", "No Vertexes",
-                            JOptionPane.OK_OPTION);
-                } else {
+                        JComboBox<Object> sourceVertex = new JComboBox<>(((TableListModel) vertexTable.getModel()).getColumnOneData());
+                        JComboBox targetVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
 
-                    JComboBox<Object> sourceVertex = new JComboBox<>(((TableListModel) vertexTable.getModel()).getColumnOneData());
-                    JComboBox targetVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
+                        JPanel myPanel = new JPanel();
+                        myPanel.add(new JLabel("Source:"));
+                        myPanel.add(sourceVertex);
+                        myPanel.add(new JLabel(" ▶ ")); // a spacer
+                        myPanel.add(new JLabel("Target:"));
+                        myPanel.add(targetVertex);
 
-                    JPanel myPanel = new JPanel();
-                    myPanel.add(new JLabel("Source:"));
-                    myPanel.add(sourceVertex);
-                    myPanel.add(new JLabel(" ▶ ")); // a spacer
-                    myPanel.add(new JLabel("Target:"));
-                    myPanel.add(targetVertex);
-
-                    int result = JOptionPane.showConfirmDialog(null, myPanel,
-                            "New Edge", JOptionPane.OK_CANCEL_OPTION);
-                    if (result == JOptionPane.OK_OPTION) {
-                        ((TableListModel) edgeTable.getModel()).addRow(new String[]{(String) sourceVertex.getSelectedItem(),
-                                (String) targetVertex.getSelectedItem()});
+                        int result = JOptionPane.showConfirmDialog(null, myPanel,
+                                "New Edge", JOptionPane.OK_CANCEL_OPTION);
+                        if (result == JOptionPane.OK_OPTION) {
+                            ((TableListModel) edgeTable.getModel()).addRow(new String[]{(String) sourceVertex.getSelectedItem(),
+                                    (String) targetVertex.getSelectedItem()});
+                        }
                     }
                 }
-            });
+            };
+
+            // Add Vertex button can be pressed using F2 and ENTER
+            addEdgeButton.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "Enter");
+            addEdgeButton.getActionMap().put("Enter", edgeAddAction);
+            addEdgeButton.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "F2");
+            addEdgeButton.getActionMap().put("F2", edgeAddAction);
+            addEdgeButton.addActionListener(edgeAddAction);
 
             // Delete an edge
             deleteEdgeButton.addActionListener((event) -> {
