@@ -10,6 +10,8 @@ import org.jgrapht.graph.ListenableDirectedGraph;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
 import java.awt.event.FocusAdapter;
@@ -23,21 +25,22 @@ import java.util.stream.Collectors;
 
 class Main {
 
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) {
         homeGUI();
     }
 
     // Graph GUI
     public static class GraphGUI extends JFrame {
         private static final Color DEFAULT_BG_COLOR = Color.decode("#FAFBFF");
-        private static final Dimension DEFAULT_SIZE = new Dimension(530, 320);
+        private static final Dimension DEFAULT_SIZE = new Dimension(1000, 1000);
 
         private JGraph jgraph;
         private ListenableGraph<String, DefaultEdge> listenableGraph;
         private JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter;
 
         private JTabbedPane tabs;
+
+        JScrollPane graphScrollPane;
 
         // Edge table
         private JTable edgeTable;
@@ -48,14 +51,139 @@ class Main {
         // Constructor for GraphGUI
         private GraphGUI(String name, JGraph jgraph,
                          ListenableGraph<String, DefaultEdge> listenableGraph,
-                         JGraphModelAdapter<String, DefaultEdge>jGraphModelAdapter) {
+                         JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter) {
             //Inherits name from JFrame
             super(name);
             this.jgraph = jgraph;
             this.listenableGraph = listenableGraph;
             this.jGraphModelAdapter = jGraphModelAdapter;
 
-           init();
+            init();
+        }
+
+        // Initialize graph display
+        public void init() {
+
+            // Tabs
+            tabs = new JTabbedPane();
+
+            JPanel homePanel = new JPanel();
+            buildHomePage(homePanel);
+
+            JPanel adjacencyPanel = new JPanel();
+            buildAdjacencyPage(adjacencyPanel);
+
+            JPanel buttons = new JPanel();
+            JPanel mainPanel = new JPanel();
+
+            final JButton reloadButton = new JButton("Reload graph");
+            final JButton quitButton = new JButton("Quit");
+
+            // Reload graph
+            reloadButton.addActionListener((event) -> {
+
+                java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
+                java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
+
+                listenableGraph = new ListenableDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
+
+                jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
+
+                jgraph = new JGraph(jGraphModelAdapter);
+
+                vertexes.forEach(item ->
+                {
+                    listenableGraph.addVertex(item[0]);
+                });
+
+                edges.forEach(item ->
+                {
+                    if (listenableGraph.containsVertex(item[0]) && listenableGraph.containsVertex(item[1])) {
+                        listenableGraph.addEdge(item[0], item[1]);
+                    }
+                });
+
+                // Position vertices within JGraph component
+                final int[] columns = {0};
+                final int[] x = {20};
+                final int[] y = {20};
+                listenableGraph.vertexSet().forEach(item -> {
+                    if (columns[0] == 3) {
+                        x[0] = 20;
+                        y[0] += 200;
+                        columns[0] = 0;
+                    }
+
+                    positionVertexAt(item, x[0], y[0]);
+
+                    x[0] += 180;
+                    columns[0]++;
+                });
+
+                // create a JGraphT graph
+                adjustDisplaySettings(jgraph);
+                graphScrollPane.setViewportView(jgraph);
+
+            });
+
+            //Quit button
+            quitButton.addActionListener(e -> System.exit(0));
+
+            buttons.add(reloadButton);
+            buttons.add(quitButton);
+
+            mainPanel.add(tabs);
+            mainPanel.add(buttons);
+
+            graphScrollPane = new JScrollPane(jgraph,
+                    JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                    JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+            graphScrollPane.setPreferredSize(new Dimension(500, 320));
+
+            tabs.addTab("Home", null, homePanel, "Home");
+            tabs.addTab("Adjacency", null, adjacencyPanel, "Adjacency");
+            tabs.addTab("Graph", null, graphScrollPane, "Graph");
+
+            // create a JGraphT graph
+            adjustDisplaySettings(jgraph);
+            getContentPane().add(mainPanel);
+            // setSize(DEFAULT_SIZE);
+
+            // Position vertices within JGraph component
+            final int[] columns = {0};
+            final int[] x = {20};
+            final int[] y = {20};
+            listenableGraph.vertexSet().forEach(item -> {
+                if (columns[0] == 3) {
+                    x[0] = 20;
+                    y[0] += 200;
+                    columns[0] = 0;
+                }
+
+                positionVertexAt(item, x[0], y[0]);
+
+                x[0] += 180;
+                columns[0]++;
+            });
+        }
+
+        // Adjust graph size and background color
+        private void adjustDisplaySettings(JGraph jg) {
+            jg.setPreferredSize(DEFAULT_SIZE);
+            jg.setBackground(DEFAULT_BG_COLOR);
+        }
+
+        // Position a vertex
+        private void positionVertexAt(Object vertex, int x, int y) {
+            DefaultGraphCell cell = jGraphModelAdapter.getVertexCell(vertex);
+            Map attr = cell.getAttributes();
+            Rectangle2D b = GraphConstants.getBounds(attr);
+
+            GraphConstants.setBounds(attr, new Rectangle(x, y, (int) b.getWidth(), (int) b.getHeight()));
+
+            Map<DefaultGraphCell, Map> cellAttr = new HashMap<DefaultGraphCell, Map>();
+            cellAttr.put(cell, attr);
+            jGraphModelAdapter.edit(cellAttr, null, null, null);
         }
 
         // Table List Model class for GUI table of unsorted/sorted lists
@@ -77,10 +205,13 @@ class Main {
                 fireTableRowsDeleted(data.size(), data.size());
             }
 
-            public Object[] getColumnOneData()
-            {
+            public Object[] getColumnOneData() {
                 return data.stream().map(item -> item[0]).sorted(String::compareTo)
-                    .collect(Collectors.<String>toList()).toArray();
+                        .collect(Collectors.<String>toList()).toArray();
+            }
+
+            public java.util.List<String[]> getData() {
+                return data;
             }
 
             @Override
@@ -116,6 +247,15 @@ class Main {
         }
 
         /**
+         * Builds the Adjacency Page - Adjacency List and Matrix
+         *
+         * @param page The Adjacency tab
+         */
+        private void buildAdjacencyPage(JPanel page) {
+
+        }
+
+        /**
          * Builds the Home Page
          *
          * @param page The home tab
@@ -123,10 +263,10 @@ class Main {
         private void buildHomePage(JPanel page) {
 
             JPanel vertexPane = new JPanel(new BorderLayout());
-            vertexPane.setBorder(new TitledBorder ("Vertexes"));
+            vertexPane.setBorder(new TitledBorder("Vertexes"));
 
             JPanel edgePane = new JPanel(new BorderLayout());
-            edgePane.setBorder(new TitledBorder ("Edges"));
+            edgePane.setBorder(new TitledBorder("Edges"));
 
             JScrollPane vertexTablePane;
             JScrollPane edgeTablePane;
@@ -137,7 +277,9 @@ class Main {
 
                 public boolean isCellEditable(int row, int column) {
                     return true;
-                };
+                }
+
+                ;
             };
 
             vertexTable.setModel(new TableListModel(new String[]{"Vertex"}));
@@ -156,9 +298,12 @@ class Main {
 
                 public boolean isCellEditable(int row, int column) {
                     return true;
-                };
+                }
+
+                ;
             };
 
+            // Set up edge table
             edgeTable.setModel(new TableListModel(new String[]{"Source", "Target"}));
             Dimension edgeTableDim = edgeTable.getPreferredScrollableViewportSize();
             edgeTableDim.setSize(edgeTable.getPreferredSize().getWidth(), 200);
@@ -172,7 +317,6 @@ class Main {
             //Set up the editor for the cells.
             JComboBox edgeComboBox2 = new JComboBox();
             edgeTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(edgeComboBox2));
-
             edgeTable.putClientProperty("terminateEditOnFocusLost", true);
 
             edgeTablePane = new JScrollPane(edgeTable);
@@ -184,8 +328,7 @@ class Main {
                     edgeComboBox1.removeAllItems();
                     edgeComboBox2.removeAllItems();
 
-                    for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
-                    {
+                    for (Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData()) {
                         edgeComboBox1.addItem(item.toString());
                         edgeComboBox2.addItem(item.toString());
                     }
@@ -201,6 +344,7 @@ class Main {
             final JButton addVertexButton = new JButton("+ Add");
             final JButton deleteVertexButton = new JButton("- Delete");
 
+            // Add a vertex
             addVertexButton.addActionListener((event) -> {
 
                 JTextField newVertex = new JTextField(10);
@@ -209,32 +353,31 @@ class Main {
                 myPanel.add(new JLabel("Vertex:"));
                 myPanel.add(newVertex);
 
+                newVertex.addAncestorListener(new RequestFocusListener());
+
                 int result = JOptionPane.showConfirmDialog(null, myPanel,
                         "New Vertex", JOptionPane.OK_CANCEL_OPTION);
-                if (result == JOptionPane.OK_OPTION) {
-                    ((TableListModel) vertexTable.getModel()).addRow(new String[]{newVertex.getText()});
+
+                if (result == JOptionPane.OK_OPTION && newVertex.getText().trim().length() > 0) {
+                    ((TableListModel) vertexTable.getModel()).addRow(new String[]{newVertex.getText().trim()});
 
                     edgeComboBox1.removeAllItems();
                     edgeComboBox2.removeAllItems();
 
-                    for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
-                    {
+                    for (Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData()) {
                         edgeComboBox1.addItem(item.toString());
                         edgeComboBox2.addItem(item.toString());
                     }
                 }
             });
 
-            // Delete vertex
+            // Delete a vertex
             deleteVertexButton.addActionListener((event) -> {
 
-                if(vertexTable.getSelectedRow() < 0)
-                {
+                if (vertexTable.getSelectedRow() < 0) {
                     JOptionPane.showMessageDialog(null, "Select a Vertex first", "Vertex Not Selected",
                             JOptionPane.OK_OPTION);
-                }
-                else
-                {
+                } else {
                     JDialog.setDefaultLookAndFeelDecorated(true);
                     int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Vertex: " +
                                     ((TableListModel) vertexTable.getModel()).getValueAt(vertexTable.getSelectedRow(), 0) + "?", "Delete?",
@@ -245,8 +388,7 @@ class Main {
                         edgeComboBox1.removeAllItems();
                         edgeComboBox2.removeAllItems();
 
-                        for(Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData())
-                        {
+                        for (Object item : ((TableListModel) vertexTable.getModel()).getColumnOneData()) {
                             edgeComboBox1.addItem(item.toString());
                             edgeComboBox2.addItem(item.toString());
                         }
@@ -263,14 +405,13 @@ class Main {
             final JButton addEdgeButton = new JButton("+ Add");
             final JButton deleteEdgeButton = new JButton("- Delete");
 
+            // Add an edge
             addEdgeButton.addActionListener((event) -> {
 
-                if(((TableListModel) vertexTable.getModel()).getColumnOneData().length == 0)
-                {
+                if (((TableListModel) vertexTable.getModel()).getColumnOneData().length == 0) {
                     JOptionPane.showMessageDialog(null, "Add a Vertex first", "No Vertexes",
                             JOptionPane.OK_OPTION);
-                }
-                else {
+                } else {
 
                     JComboBox sourceVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
                     JComboBox targetVertex = new JComboBox(((TableListModel) vertexTable.getModel()).getColumnOneData());
@@ -291,15 +432,13 @@ class Main {
                 }
             });
 
+            // Delete an edge
             deleteEdgeButton.addActionListener((event) -> {
 
-                if(edgeTable.getSelectedRow() < 0)
-                {
+                if (edgeTable.getSelectedRow() < 0) {
                     JOptionPane.showMessageDialog(null, "Select an Edge first", "Edge Not Selected",
                             JOptionPane.OK_OPTION);
-                }
-                else
-                {
+                } else {
                     JDialog.setDefaultLookAndFeelDecorated(true);
                     int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Edge: " +
                                     ((TableListModel) edgeTable.getModel()).getValueAt(edgeTable.getSelectedRow(), 0) + " ▶ " +
@@ -322,64 +461,40 @@ class Main {
             page.add(edgePane, BorderLayout.EAST);
         }
 
+        // Request focus listener
+        // Used for the vertex add dialog
+        public class RequestFocusListener implements AncestorListener {
+            private boolean removeListener;
 
-        // Initialize graph display
-        public void init() {
-            //
-            tabs = new JTabbedPane();
+            public RequestFocusListener() {
+                this(true);
+            }
 
-            JPanel homePanel = new JPanel();
-            buildHomePage(homePanel);
+            public RequestFocusListener(boolean removeListener) {
+                this.removeListener = removeListener;
+            }
 
-            tabs.addTab("Home", null, homePanel, "Home");
-            tabs.addTab("Graph", null, jgraph, "Graph");
+            @Override
+            public void ancestorAdded(AncestorEvent e) {
+                JComponent component = e.getComponent();
+                component.requestFocusInWindow();
 
-            // create a JGraphT graph
-            adjustDisplaySettings(jgraph);
-            getContentPane().add(tabs);
-            setSize(DEFAULT_SIZE);
+                if (removeListener)
+                    component.removeAncestorListener(this);
+            }
 
-            // Position vertices within JGraph component
-            final int[] columns = {0};
-            final int[] x = {20};
-            final int[] y = {20};
-            listenableGraph.vertexSet().forEach(item -> {
-                if(columns[0] == 3)
-                {
-                    x[0] = 20;
-                    y[0] += 200;
-                    columns[0] = 0;
-                }
+            @Override
+            public void ancestorMoved(AncestorEvent e) {
+            }
 
-                positionVertexAt(item,  x[0], y[0]);
-
-                x[0] += 180;
-                columns[0]++;
-            });
+            @Override
+            public void ancestorRemoved(AncestorEvent e) {
+            }
         }
 
-        // Adjust graph size and background color
-        private void adjustDisplaySettings(JGraph jg) {
-            jg.setPreferredSize(DEFAULT_SIZE);
-            jg.setBackground(DEFAULT_BG_COLOR);
-        }
-
-        // Position a vertex
-        private void positionVertexAt(Object vertex, int x, int y) {
-            DefaultGraphCell cell = jGraphModelAdapter.getVertexCell(vertex);
-            Map attr = cell.getAttributes();
-            Rectangle2D b = GraphConstants.getBounds(attr);
-
-            GraphConstants.setBounds(attr, new Rectangle(x, y, (int) b.getWidth(), (int)b.getHeight()));
-
-            Map<DefaultGraphCell, Map> cellAttr = new HashMap<DefaultGraphCell, Map>();
-            cellAttr.put(cell, attr);
-            jGraphModelAdapter.edit(cellAttr, null, null, null);
-        }
     }
 
-    public static void homeGUI()
-    {
+    public static void homeGUI() {
         ListenableGraph<String, DefaultEdge> listenableGraph = new ListenableDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
 
         JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter;
@@ -387,6 +502,7 @@ class Main {
         jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
 
         JGraph jgraph = new JGraph(jGraphModelAdapter);
+
 
         // add some sample data (graph manipulated via JGraphT)
         listenableGraph.addVertex("A");
@@ -408,13 +524,14 @@ class Main {
         listenableGraph.addEdge("H", "G");
         listenableGraph.addEdge("E", "G");
 
-        displayGraph("One", jgraph, listenableGraph, jGraphModelAdapter);
+
+        displayGraphGUI("PA-3 Graphs", jgraph, listenableGraph, jGraphModelAdapter);
     }
 
     // Display graph
-    static void displayGraph(String name, JGraph jgraph,
-                             ListenableGraph<String, DefaultEdge> listenableGraph,
-                             JGraphModelAdapter<String, DefaultEdge>jGraphModelAdapter) {
+    private static void displayGraphGUI(String name, JGraph jgraph,
+                                        ListenableGraph<String, DefaultEdge> listenableGraph,
+                                        JGraphModelAdapter<String, DefaultEdge> jGraphModelAdapter) {
 
         //Create and set up a new GUI
         GraphGUI frame = new GraphGUI(name, jgraph, listenableGraph, jGraphModelAdapter);
