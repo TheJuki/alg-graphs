@@ -14,7 +14,6 @@ import org.jgrapht.graph.ListenableUndirectedGraph;
 import org.jgrapht.traverse.DepthFirstIterator;
 import org.jgrapht.traverse.GraphIterator;
 
-import javax.print.DocFlavor;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.AncestorEvent;
@@ -71,7 +70,13 @@ class Main {
         private static final Font LABEL_FONT = new Font(Font.DIALOG, Font.PLAIN, 24);
 
         // SCC list
-        private java.util.List sccList;
+        private List sccList;
+
+        // BFS table
+        private JLabel[][] dfsGridTable = new JLabel[7][5];
+
+        // BFS Node list
+        List<String> dfsNodeList = new ArrayList<>();
 
         // Boolean to determine of the graph is directed
         private boolean isDirected = true;
@@ -98,6 +103,10 @@ class Main {
             // Adjacency panel
             JPanel adjacencyPanel = new JPanel();
             buildAdjacencyPage(adjacencyPanel);
+
+            // DFS panel
+            JPanel dfsPanel = new JPanel();
+            buildDfsPage(dfsPanel);
 
             // SCC panel
             JPanel sccPanel = new JPanel();
@@ -126,7 +135,7 @@ class Main {
 
             // Bottom buttons
             final JButton reloadButton = new JButton("Reload graph");
-            reloadButton.setToolTipText("Reloads the adjacency list and matrix, SCC, and interactive graph");
+            reloadButton.setToolTipText("Reloads the adjacency list and matrix, DFS, SCC, and interactive graph");
             final JButton quitButton = new JButton("Quit");
 
             // Reload graph
@@ -135,8 +144,8 @@ class Main {
                 public void actionPerformed(ActionEvent event) {
 
                     // Get vertexes and edges from Home tables
-                    java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
-                    java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
+                    List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
+                    List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
 
                     // Create a new Directed or Undirected graph
                     if (isDirected) {
@@ -201,6 +210,7 @@ class Main {
 
                         sccList = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
 
+                        // Build SCC Panel
                         buildSccPage(sccPanel);
 
                     }
@@ -215,34 +225,71 @@ class Main {
                             adjacencyMatrix[0][i] = new JLabel(" " + vertexes.get(i - 1)[0] + " ", SwingConstants.CENTER);
                         }
 
-                        for (int i = 1; i <= vertexes.size(); i++)
-                        {
+                        for (int i = 1; i <= vertexes.size(); i++) {
                             adjacencyMatrix[i][0] = new JLabel(" " + vertexes.get(i - 1)[0] + " ", SwingConstants.CENTER);
 
                             for (int j = 1; j <= vertexes.size(); j++) {
                                 adjacencyMatrix[i][j] =
                                         new JLabel((listenableGraph.getEdge(adjacencyMatrix[i][0].getText().trim(),
                                                 adjacencyMatrix[0][j].getText().trim()) != null) ? " 1 " : " 0 ",
-                                        SwingConstants.CENTER);
+                                                SwingConstants.CENTER);
 
-                                if(listenableGraph.getEdge(adjacencyMatrix[i][0].getText().trim(), adjacencyMatrix[0][j].getText().trim()) != null)
-                                {
-                                    adjacencyList.get(i-1).add(adjacencyMatrix[0][j].getText().trim());
+                                if (listenableGraph.getEdge(adjacencyMatrix[i][0].getText().trim(), adjacencyMatrix[0][j].getText().trim()) != null) {
+                                    adjacencyList.get(i - 1).add(adjacencyMatrix[0][j].getText().trim());
                                 }
 
                             }
                         }
 
+                        // Build Adjacency Panel
                         buildAdjacencyPage(adjacencyPanel);
+
+                        // Depth-First Search
+                        dfsNodeList = new ArrayList<String>();
+
+                        //Run Depth-First Search Iterator
+                        GraphIterator<String, DefaultEdge> iterator =
+                                new DepthFirstIterator<String, DefaultEdge>(listenableGraph, vertexes.get(0)[0]);
+                        while (iterator.hasNext()) {
+                            dfsNodeList.add(iterator.next());
+                        }
+
+                        // Run Depth-First Search Algorithm
+                        SearchAttributes dfsSearchAttributes = dfSearch(vertexes, adjacencyList);
+
+                        // Adjacency Matrix and List
+                        dfsGridTable = new JLabel[5][vertexes.size() + 1];
+
+                        // Initial Depth-First Search Table
+                        if (dfsGridTable.length > 0) {
+                            dfsGridTable[0][0] = new JLabel(" ", SwingConstants.CENTER);
+
+                            dfsGridTable[1][0] = new JLabel(" " + "Color" + " ", SwingConstants.LEFT);
+                            dfsGridTable[2][0] = new JLabel(" " + "Predecessor" + " ", SwingConstants.LEFT);
+                            dfsGridTable[3][0] = new JLabel(" " + "First Time" + " ", SwingConstants.LEFT);
+                            dfsGridTable[4][0] = new JLabel(" " + "Last Time" + " ", SwingConstants.LEFT);
+
+                            for (int i = 1; i <= vertexes.size(); i++) {
+                                dfsGridTable[0][i] = new JLabel(" " + vertexes.get(i - 1)[0] + " ", SwingConstants.CENTER);
+                            }
+                            for (int i = 1; i <= vertexes.size(); i++) {
+                                dfsGridTable[1][i] = new JLabel(" " + dfsSearchAttributes.getColor()[i - 1].getValue() + " ", SwingConstants.CENTER);
+                            }
+                            for (int i = 1; i <= vertexes.size(); i++) {
+                                dfsGridTable[2][i] = new JLabel(" " + dfsSearchAttributes.getPredecessor()[i - 1] + " ", SwingConstants.CENTER);
+                            }
+                            for (int i = 1; i <= vertexes.size(); i++) {
+                                dfsGridTable[3][i] = new JLabel(" " + dfsSearchAttributes.getFirstTime()[i - 1] + " ", SwingConstants.CENTER);
+                            }
+                            for (int i = 1; i <= vertexes.size(); i++) {
+                                dfsGridTable[4][i] = new JLabel(" " + dfsSearchAttributes.getLastTime()[i - 1] + " ", SwingConstants.CENTER);
+                            }
+
+                        }
                     }
 
-                    GraphIterator<String, DefaultEdge> iterator =
-                            new DepthFirstIterator<>(listenableGraph);
-                    while (iterator.hasNext()) {
-                        System.out.println( iterator.next() );
-                    }
-
-                    dfSearch(vertexes, adjacencyList);
+                    // Build DFS Panel
+                    buildDfsPage(dfsPanel);
                 }
             });
 
@@ -268,6 +315,7 @@ class Main {
             // Add tabs
             tabs.addTab("Vertexes/Edges", null, homePanel, "Edit Vertexes and Edges");
             tabs.addTab("Adjacency", null, adjacencyPanel, "Adjacency List and Matrix");
+            tabs.addTab("DFS", null, dfsPanel, "Depth-First Search");
             tabs.addTab("SCC", null, sccPanel, "Strongly Connected Components");
             tabs.addTab("Graph", null, graphScrollPane, "Interactive Graph");
 
@@ -296,8 +344,8 @@ class Main {
 
         // Table List Model class for the GUI tables
         public class TableListModel extends AbstractTableModel {
-            private java.util.List<String> columnNames = new ArrayList<>();
-            private java.util.List<String[]> data = new ArrayList<>();
+            private List<String> columnNames = new ArrayList<>();
+            private List<String[]> data = new ArrayList<>();
 
             public TableListModel(String[] columnNames) {
                 Collections.addAll(this.columnNames, columnNames);
@@ -318,7 +366,7 @@ class Main {
                         .collect(Collectors.<String>toList()).toArray();
             }
 
-            public java.util.List<String[]> getData() {
+            public List<String[]> getData() {
                 return data;
             }
 
@@ -428,6 +476,74 @@ class Main {
 
             // Add matrix and list to adjacency panel
             page.add(matrixPane, BorderLayout.WEST);
+            page.add(listPane, BorderLayout.EAST);
+
+            // Refresh page
+            page.revalidate();
+            page.repaint();
+        }
+
+        /**
+         * Builds the DFS Page - Depth-First Search
+         *
+         * @param page The DFS tab
+         */
+        private void buildDfsPage(JPanel page) {
+
+            // Remove previous components
+            page.removeAll();
+
+            // Build grid
+            JPanel dfsPanel = new JPanel(new GridLayout(dfsGridTable.length, dfsGridTable[0].length, GAP, GAP));
+            dfsPanel.setBorder(BorderFactory.createEmptyBorder(GAP, GAP, GAP, GAP));
+            dfsPanel.setBackground(Color.BLACK);
+            for (int row = 0; row < dfsGridTable.length; row++) {
+                for (int col = 0; col < dfsGridTable[row].length; col++) {
+                    if(dfsGridTable[row][col] == null)
+                    {
+                        dfsGridTable[row][col] = new JLabel("  ", SwingConstants.CENTER);
+                    }
+                    dfsGridTable[row][col].setOpaque(true);
+                    dfsGridTable[row][col].setBackground(Color.WHITE);
+                    dfsPanel.add(dfsGridTable[row][col]);
+                }
+            }
+
+            // List pane
+            JPanel listPane = new JPanel(new BorderLayout());
+            listPane.setBorder(new TitledBorder("Visited Nodes"));
+
+            // Visted Node List Grid
+            JPanel nodeListPanel = new JPanel(new GridLayout(dfsNodeList.size(), 1, GAP, GAP));
+
+            // Add each row of the visited nodes to the table
+            for (String item : dfsNodeList) {
+
+                JLabel labelItem = new JLabel(" " + item + " ");
+
+                labelItem.setOpaque(true);
+                labelItem.setBackground(Color.WHITE);
+                nodeListPanel.add(labelItem);
+            }
+
+            JScrollPane listScrollPane = new JScrollPane(nodeListPanel);
+            listScrollPane.setPreferredSize(new Dimension(100, 300));
+
+            // Add list to scroll pane
+            listPane.add(listScrollPane);
+
+            // DFS pane
+            JPanel dfsPane = new JPanel(new BorderLayout());
+            dfsPane.setBorder(new TitledBorder("DFS"));
+
+            // Scroll panes
+            JScrollPane dfsScrollPane = new JScrollPane(dfsPanel);
+            dfsScrollPane.setPreferredSize(new Dimension(300, 300));
+
+            dfsPane.add(dfsScrollPane);
+
+            // Add dfs grid and visted node list to dfs panel
+            page.add(dfsPane, BorderLayout.WEST);
             page.add(listPane, BorderLayout.EAST);
 
             // Refresh page
@@ -769,13 +885,23 @@ class Main {
 
         // Vertex color for search algorithms
         private enum VertexColor {
-            WHITE, GRAY, BLACK;
+            WHITE("W"), GRAY("G"), BLACK("B");
+
+            private String value;
+
+            VertexColor(String value) {
+                this.value = value;
+            }
+
+            public String getValue() {
+                return value;
+            }
         }
 
         // Search attributes
         public class SearchAttributes
         {
-            private java.util.List<String[]> vertexes;
+            private List<String[]> vertexes;
             private ArrayList<LinkedList<String>> adjacencyList;
             private VertexColor[] color;
             private String[] predecessor;
@@ -784,7 +910,7 @@ class Main {
             private int[] distance;
             private int time;
 
-            public SearchAttributes(@NotNull java.util.List<String[]> vertexes,
+            public SearchAttributes(@NotNull List<String[]> vertexes,
                                     ArrayList<LinkedList<String>> adjacencyList)
             {
                 this.vertexes = vertexes;
@@ -850,7 +976,7 @@ class Main {
         }
 
         // Depth-First Search
-        public SearchAttributes dfSearch(java.util.List<String[]> vertexes,  ArrayList<LinkedList<String>> adjacencyList)
+        public SearchAttributes dfSearch(List<String[]> vertexes,  ArrayList<LinkedList<String>> adjacencyList)
         {
             // Get search initial attributes
             SearchAttributes searchAttributes = new SearchAttributes(vertexes, adjacencyList);
@@ -871,8 +997,6 @@ class Main {
                }
             }
 
-            System.out.print(Arrays.toString(searchAttributes.getLastTime()));
-
             return searchAttributes;
         }
 
@@ -886,6 +1010,7 @@ class Main {
 
             for(int v = 0; v < searchAttributes.getAdjacencyList().get(u).size(); v++)
             {
+                // Get vertex index from the vertex found in the vertex adjacency list
                 int vertexIndex = searchAttributes.getVertexIndex(searchAttributes.getAdjacencyList().get(u).get(v));
 
                 // Check if color is white
