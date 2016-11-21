@@ -1,0 +1,15 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="alg-graphs:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/alg_graphs_jar</output-path>
+    <root id="archive" name="alg-graphs.jar">
+      <element id="module-output" name="alg-graphs" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgraph-5.13.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgraphx-2.0.0.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgrapht-ext-1.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgrapht-core-1.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgrapht-demo-1.0.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/antlr4-runtime-4.5.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/jgrapht-ext-1.0.0-uber.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
