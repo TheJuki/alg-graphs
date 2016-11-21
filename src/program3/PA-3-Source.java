@@ -66,6 +66,12 @@ class Main {
         // Vertex table
         private JTable vertexTable;
 
+        // Ajacency matrix
+        private JLabel[][] adjacencyMatrix = new JLabel[9][9];
+
+        private static final int GAP = 1;
+        private static final Font LABEL_FONT = new Font(Font.DIALOG, Font.PLAIN, 24);
+
         // Boolean to determine of the graph is directed
         private boolean isDirected = true;
 
@@ -110,83 +116,111 @@ class Main {
             final JButton quitButton = new JButton("Quit");
 
             // Reload graph
-            reloadButton.addActionListener((event) -> {
+            reloadButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent event) {
 
-                java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
-                java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
 
-                if(isDirected) {
-                    listenableGraph = new ListenableDirectedGraph<>(DefaultEdge.class);
-                }
-                else
-                {
-                    listenableGraph = new ListenableUndirectedGraph<>(DefaultEdge.class);
-                }
+                    java.util.List<String[]> vertexes = ((TableListModel) vertexTable.getModel()).getData();
+                    java.util.List<String[]> edges = ((TableListModel) edgeTable.getModel()).getData();
 
-                jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
-
-                jgraph = new JGraph(jGraphModelAdapter);
-
-                vertexes.forEach(item ->
-                {
-                    listenableGraph.addVertex(item[0]);
-                });
-
-                edges.forEach(item ->
-                {
-                    if (listenableGraph.containsVertex(item[0]) && listenableGraph.containsVertex(item[1])) {
-                        listenableGraph.addEdge(item[0], item[1]);
-                    }
-                });
-
-                // Position vertices within JGraph component
-                final int[] columns = {0};
-                final int[] x = {20};
-                final int[] y = {20};
-                listenableGraph.vertexSet().forEach(item -> {
-                    if (columns[0] == 3) {
-                        x[0] = 20;
-                        y[0] += 200;
-                        columns[0] = 0;
+                    if (isDirected) {
+                        listenableGraph = new ListenableDirectedGraph<>(DefaultEdge.class);
+                    } else {
+                        listenableGraph = new ListenableUndirectedGraph<>(DefaultEdge.class);
                     }
 
-                    positionVertexAt(item, x[0], y[0]);
+                    jGraphModelAdapter = new JGraphModelAdapter<>(listenableGraph);
 
-                    x[0] += 180;
-                    columns[0]++;
-                });
+                    jgraph = new JGraph(jGraphModelAdapter);
 
-                // create a JGraphT graph
-                adjustDisplaySettings(jgraph);
-                graphScrollPane.setViewportView(jgraph);
+                    vertexes.forEach(item ->
+                    {
+                        listenableGraph.addVertex(item[0]);
+                    });
 
-                MatrixExporter<String, DefaultEdge> matrixExporter = new MatrixExporter<>();
+                    edges.forEach(item ->
+                    {
+                        if (listenableGraph.containsVertex(item[0]) && listenableGraph.containsVertex(item[1])) {
+                            listenableGraph.addEdge(item[0], item[1]);
+                        }
+                    });
 
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    // Position vertices within JGraph component
+                    final int[] columns = {0};
+                    final int[] x = {20};
+                    final int[] y = {20};
+                    listenableGraph.vertexSet().forEach(item -> {
+                        if (columns[0] == 3) {
+                            x[0] = 20;
+                            y[0] += 200;
+                            columns[0] = 0;
+                        }
 
-                try {
-                    matrixExporter.exportGraph(listenableGraph, outputStream);
+                        positionVertexAt(item, x[0], y[0]);
 
-                    String adjanceyMatrix = "";
+                        x[0] += 180;
+                        columns[0]++;
+                    });
 
-                    adjanceyMatrix = outputStream.toString( StandardCharsets.UTF_8.toString() );
+                    // create a JGraphT graph
+                    adjustDisplaySettings(jgraph);
+                    graphScrollPane.setViewportView(jgraph);
 
-                    System.out.print(adjanceyMatrix);
-                } catch (ExportException e) {
-                    e.printStackTrace();
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
+                    MatrixExporter<String, DefaultEdge> matrixExporter = new MatrixExporter<>();
+
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+                    try {
+                        matrixExporter.exportGraph(listenableGraph, outputStream);
+
+                        String adjanceyMatrix = "";
+
+                        adjanceyMatrix = outputStream.toString(StandardCharsets.UTF_8.toString());
+
+                        System.out.print(adjanceyMatrix);
+                    } catch (ExportException e) {
+                        e.printStackTrace();
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (isDirected) {
+                        KosarajuStrongConnectivityInspector kosarajuStrongConnectivityInspector = new KosarajuStrongConnectivityInspector((DirectedGraph) listenableGraph);
+
+                        java.util.List list = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
+
+                        list.forEach(item -> System.out.print(item + "\n"));
+                    }
+
+                    // Adjacency Matrix and List
+                    adjacencyMatrix = new JLabel[vertexes.size() + 1][vertexes.size() + 1];
+
+                    System.out.print(adjacencyMatrix.length);
+
+                    if(adjacencyMatrix.length > 0) {
+                        adjacencyMatrix[0][0] = new JLabel(" ", SwingConstants.CENTER);
+
+                        for (int i = 1; i <= vertexes.size(); i++) {
+                            adjacencyMatrix[0][i] = new JLabel(vertexes.get(i - 1)[0], SwingConstants.CENTER);
+                        }
+
+                        for (int i = 1; i <= vertexes.size(); i++)
+                        {
+                            adjacencyMatrix[i][0] = new JLabel(vertexes.get(i - 1)[0], SwingConstants.CENTER);
+
+                            for (int j = 1; j <= vertexes.size(); j++) {
+                                adjacencyMatrix[i][j] =
+                                        new JLabel((listenableGraph.getEdge(adjacencyMatrix[i][0].getText(),
+                                                adjacencyMatrix[0][j].getText()) != null) ? "1" : "0",
+                                        SwingConstants.CENTER);
+
+                            }
+                        }
+
+                        buildAdjacencyPage(adjacencyPanel);
+                    }
                 }
-
-                if(isDirected) {
-                    KosarajuStrongConnectivityInspector kosarajuStrongConnectivityInspector = new KosarajuStrongConnectivityInspector((DirectedGraph) listenableGraph);
-
-                    java.util.List list = kosarajuStrongConnectivityInspector.stronglyConnectedSets();
-
-                    list.forEach(item -> System.out.print(item + "\n"));
-                }
-
-
             });
 
             //Quit button
@@ -197,8 +231,8 @@ class Main {
             buttons.add(reloadButton);
             buttons.add(quitButton);
 
-            mainPanel.add(tabs);
-            mainPanel.add(buttons);
+            mainPanel.add(tabs, BorderLayout.CENTER);
+            mainPanel.add(buttons, BorderLayout.PAGE_END);
 
             graphScrollPane = new JScrollPane(null,
                     JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
@@ -298,7 +332,26 @@ class Main {
          * @param page The Adjacency tab
          */
         private void buildAdjacencyPage(JPanel page) {
+            page.removeAll();
+            JPanel matrixPannel = new JPanel(new GridLayout(adjacencyMatrix.length, adjacencyMatrix[0].length, GAP, GAP));
+            matrixPannel.setBorder(BorderFactory.createEmptyBorder(GAP, GAP, GAP, GAP));
+            matrixPannel.setBackground(Color.BLACK);
+            for (int row = 0; row < adjacencyMatrix.length; row++) {
+                for (int col = 0; col < adjacencyMatrix[row].length; col++) {
+                    if(adjacencyMatrix[row][col] == null)
+                    {
+                        adjacencyMatrix[row][col] = new JLabel("0", SwingConstants.CENTER);
+                    }
+                    adjacencyMatrix[row][col].setFont(LABEL_FONT); // make it big
+                    adjacencyMatrix[row][col].setOpaque(true);
+                    adjacencyMatrix[row][col].setBackground(Color.WHITE);
+                    matrixPannel.add(adjacencyMatrix[row][col]);
+                }
+            }
 
+            page.setLayout(new BorderLayout());
+            page.add(matrixPannel, BorderLayout.WEST);
+            page.add(new JTable(), BorderLayout.EAST);
         }
 
         /**
@@ -324,8 +377,6 @@ class Main {
                 public boolean isCellEditable(int row, int column) {
                     return true;
                 }
-
-                ;
             };
 
             vertexTable.setModel(new TableListModel(new String[]{"Vertex"}));
