@@ -247,11 +247,13 @@ class Main {
                         // Depth-First Search
                         dfsNodeList = new ArrayList<String>();
 
-                        //Run Depth-First Search Iterator
-                        GraphIterator<String, DefaultEdge> iterator =
-                                new DepthFirstIterator<String, DefaultEdge>(listenableGraph, vertexes.get(0)[0]);
-                        while (iterator.hasNext()) {
-                            dfsNodeList.add(iterator.next());
+                        if(vertexes.size() > 0) {
+                            //Run Depth-First Search Iterator
+                            GraphIterator<String, DefaultEdge> iterator =
+                                    new DepthFirstIterator<String, DefaultEdge>(listenableGraph, vertexes.get(0)[0]);
+                            while (iterator.hasNext()) {
+                                dfsNodeList.add(iterator.next());
+                            }
                         }
 
                         // Run Depth-First Search Algorithm
@@ -353,12 +355,12 @@ class Main {
 
             public void addRow(String[] row) {
                 data.add(row);
-                fireTableRowsInserted(data.size(), data.size());
+                fireTableRowsInserted(0, data.size());
             }
 
             public void deleteRow(int rowIndex) {
                 data.remove(rowIndex);
-                fireTableRowsDeleted(data.size(), data.size());
+                fireTableRowsDeleted(0, data.size());
             }
 
             public Object[] getColumnOneData() {
@@ -743,7 +745,7 @@ class Main {
                     JOptionPane.showMessageDialog(null, "Select a Vertex first", "Vertex Not Selected",
                             JOptionPane.OK_OPTION);
                 } else {
-                    JDialog.setDefaultLookAndFeelDecorated(true);
+
                     int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Vertex: " +
                                     ((TableListModel) vertexTable.getModel()).getValueAt(vertexTable.getSelectedRow(), 0) + "?", "Delete?",
                             JOptionPane.YES_NO_OPTION);
@@ -827,7 +829,7 @@ class Main {
                     JOptionPane.showMessageDialog(null, "Select an Edge first", "Edge Not Selected",
                             JOptionPane.OK_OPTION);
                 } else {
-                    JDialog.setDefaultLookAndFeelDecorated(true);
+
                     int response = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the Edge: " +
                                     ((TableListModel) edgeTable.getModel()).getValueAt(edgeTable.getSelectedRow(), 0) + " ▶ " +
                                     ((TableListModel) edgeTable.getModel()).getValueAt(edgeTable.getSelectedRow(), 1)
@@ -1046,7 +1048,7 @@ class Main {
         frame.setLocationRelativeTo(null);
 
         //Show the GUI
-        frame.setSize(500, 470);
+        frame.setSize(540, 470);
         frame.setVisible(true);
         frame.setResizable(true);
 
